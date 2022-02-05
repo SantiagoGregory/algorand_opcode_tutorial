@@ -17,7 +17,7 @@ def approval_program():
             Pop(Keccak256(Bytes("f"))),
         ]))
         .Else(Seq([
-            Pop(Keccak256(Bytes("g"))),
+            # Pop(Keccak256(Bytes("g"))),
         ])
         ),
         # test.store(Bytes("1")),

@@ -176,7 +176,7 @@ Let's explore the mechanics behind this budget mechanism. We'll be working befor
     Pop(Keccak256(Bytes("e"))),
 ```
 
-There is no significance to the letters we are feeding in; the cost will be the same regardless of the input bytes. To ensure that the execution stack is clear before the `Approve()` is reached, we are popping each generated hash as we go. If we try running `testing.py` again, we see nothing happens again, as expected: (5 hashes) \* (130 per hash) = 650 < 700. In reality, the initial NoOp uses up 10 of the allotted 700, still leaving 40 of the budget remaining. However if we add another hash to our `Seq`:
+There is no significance to the letters we are feeding in; the cost will be the same regardless of the input bytes. To ensure that the execution stack is clear before the `Approve()` is reached, we are popping each generated hash as we go. If we try running `testing.py` again, we see nothing happens again, as expected: (5 hashes) \* (130 per hash) = 650 < 700. However if we add another hash to our `Seq`:
 
 ```python:
     Pop(Keccak256(Bytes("f"))),
@@ -206,7 +206,7 @@ As expected, the transaction stays within its opcode budget and does not fail. W
 
 # 5. Expanding the budget
 
-What if you really needed a budget larger than 700? Opcode budgets are shared across group transactions, so your total *shared* budget for a grouped transaction can be up to 16 * 700 = 11200 (from the maximum amount of transactions in an atomic transfer). In reality, calling each transaction will use 10 of your opcode budget, leaving 11040 for your smart contracts to use. To show how this works, let's first construct the following group transaction in `testing.py`:
+What if you really needed a budget larger than 700? As of TEAL 4, opcode budgets are shared across group transactions, so your total *shared* budget for a grouped transaction can be up to 16 * 700 = 11200 (from the maximum amount of transactions in an atomic transfer). To show how this works, let's first construct the following group transaction in `testing.py`:
 
 ```python:
 noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [0])
@@ -222,4 +222,18 @@ exec_gtxn(algod_client, [noopTxn2, noopTxn], pkey)
 ```
 
 Here, we are creating two nearly-identical NoOp application calls, differing only by a single parameter they pass in. We then package them into a single group transaction and execute them using the helper function provided at the beginning. Next, let's update `contracts.py` to handle these different parameters. Inside the `handle_noop Seq()`, let's modify our If-Else:
+
+```python:
+    If(Btoi(Txn.application_args[0])).Then(Seq([
+        Pop(Keccak256(Bytes("e"))),
+        Pop(Keccak256(Bytes("f"))),
+    ]))
+    .Else(Seq([
+        Pop(Keccak256(Bytes("g"))),
+    ])),
+```
+
+The Btoi(Txn.application_args[0]) will evaluate to false (`Int(0)`) if our argument is 0, and true otherwise. From our group transaction, we see that the first NoOp transaction will evaluate to false, while the second will be true. Running `testing.py` again, we find that the execution fails: Although we have a total budget of (700-10) * 2 = 1380, the first transaction computes hashes for the letters a-d and g for an opcode cost of 5 * 130 = 650, while the second transaction computes hashes for a-f for an opcode cost of 6 * 130 = 780. The total opcode cost for the group transaction, therefore, is 650 + 780 = 1430, exceeding the 1400 limit.
+
+However, if we remove the "g" hash in the `Else` block (just commenting it out), the execution succeeds. While the second transaction alone (the one in which the first `If` block is executed) will compute hashes for the letters a-f for an opcode cost of 6 * 130 = 780 > 700, the first transaction only computes the four hashes before the if-else block, for an opcode cost of 4 * 130 = 520. The total opcode cost for the group transaction is then 520 + 780 = 1300, which is less than the 1400 limit.
 

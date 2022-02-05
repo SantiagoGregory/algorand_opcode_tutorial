@@ -119,9 +119,9 @@ updateTxn = transaction.ApplicationUpdateTxn(sender, algod_client.suggested_para
 
 exec_txn(algod_client, updateTxn, pkey)
 
-noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [1])
+noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [0])
 
-noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [2])
+noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [1])
 
 # exec_txn(algod_client, noopTxn, pkey)
 
@@ -135,4 +135,3 @@ noopTxn.group = groupTxnId
 noopTxn2.group = groupTxnId
 
 exec_gtxn(algod_client, [noopTxn2, noopTxn], pkey)
-
