@@ -22,7 +22,7 @@ def wait_for_confirmation(client, transaction_id, timeout):
     number of rounds have passed.
     Args:
         transaction_id (str): the transaction to wait for
-        timeout (int): maximum number of rounds to wait    
+        timeout (int): maximum number of rounds to wait
     Returns:
         dict: pending transaction information, or throws an error if the transaction
             is not confirmed or rejected in the next timeout rounds
@@ -113,7 +113,7 @@ local_schema = transaction.StateSchema(0, 0)
 
 As you might have noticed, we are importing from `contracts.py` at the top, as well as calling undefined functions `approval_program()` and `clear_state_program()`. Let's go make them.
 
-# 2. Creating an empty contract
+# 2. Creating and Executing an Empty Contract
 
 In `contracts.py`, create the following two functions:
 
@@ -158,5 +158,68 @@ def approval_program():
 
 Here, we've (obviously) allowed for app creation (when an app call transaction is sent with an application ID of 0). Update and delete transactions are not allowed, and opt in/close out calls are also rejected since our smart contract will not be dealing with local state. The most important transaction type to handle here is a NoOp transaction, which we've feed through to an empty `Seq()` variable right now.
 
-# 3. Opcode overview
+In `testing.py`,
+
+# 3. Opcode Overview
+
 Unlike other blockchains such as Ethereum, Algorand does not charge fees based on the computational cost of a smart contract call. Instead, smart contracts are given an overall opcode budget of 700, with app calls failing if this limit is surpassed. Opcode costs for each of TEAL's opcodes are given [here](https://developer.algorand.org/docs/get-details/dapps/avm/teal/opcodes/).
+
+There are many advantages to this approach. Unlike in Ethereum, developers do not have to sacrifice readability for negligible performance improvements, as fees are flat instead of dependent on computational usage. This limit also ensures that computationally expensive contracts do not add unnecessary bloat to single blocks.
+
+Let's explore the mechanics behind this budget mechanism. We'll be working before the `Approve()` statement in the handle_noop sequence, as this is what will be executed during a standard app call. From the [opcode budget list](https://developer.algorand.org/docs/get-details/dapps/avm/teal/opcodes/), we see that the Keccak256 hash has a cost of 130. To test this out, add the following lines to your `Seq`:
+
+```python:
+    Pop(Keccak256(Bytes("a"))),
+    Pop(Keccak256(Bytes("b"))),
+    Pop(Keccak256(Bytes("c"))),
+    Pop(Keccak256(Bytes("d"))),
+    Pop(Keccak256(Bytes("e"))),
+```
+
+There is no significance to the letters we are feeding in; the cost will be the same regardless of the input bytes. To ensure that the execution stack is clear before the `Approve()` is reached, we are popping each generated hash as we go. If we try running `testing.py` again, we see nothing happens again, as expected: (5 hashes) \* (130 per hash) = 650 < 700. In reality, the initial NoOp uses up 10 of the allotted 700, still leaving 40 of the budget remaining. However if we add another hash to our `Seq`:
+
+```python:
+    Pop(Keccak256(Bytes("f"))),
+```
+
+The execution fails, with "logic eval error: dynamic cost budget exceeded".
+
+# 4. Control Flow
+
+How are opcode budgets calculated across different potential execution paths? In previous versions of the Algorand Virtual Machine (AVM), opcode budgets were calculated line-by-line, regardless of which statements would be excecuted. For example, an If-Else pair with Keccak256 hashes in each code block would contribute 2\*130 to the overall budget, despite only one hash being computed during execution. However, the AVM now tallies opcodes as a program executes, ensuring there is sufficient budget remaining before executing a subsequent statement and failing only if the 700 budget will be exceeded.
+
+To demonstrate, wrap the final two Keccak256 hashes in an If-Else pair:
+
+```python:
+    Pop(Keccak256(Bytes("a"))),
+    Pop(Keccak256(Bytes("b"))),
+    Pop(Keccak256(Bytes("c"))),
+    Pop(Keccak256(Bytes("d"))),
+    If(Int(1)).Then(
+        Pop(Keccak256(Bytes("e"))),
+    ).Else(
+        Pop(Keccak256(Bytes("f"))),
+    ),
+```
+
+As expected, the transaction stays within its opcode budget and does not fail. While this if statement is obviously useless, it nicely demonstrates the underlying mechanism for computing opcode usage; as either path for the if statement results in 5 hash computations.
+
+# 5. Expanding the budget
+
+What if you really needed a budget larger than 700? Opcode budgets are shared across group transactions, so your total *shared* budget for a grouped transaction can be up to 16 * 700 = 11200 (from the maximum amount of transactions in an atomic transfer). In reality, calling each transaction will use 10 of your opcode budget, leaving 11040 for your smart contracts to use. To show how this works, let's first construct the following group transaction in `testing.py`:
+
+```python:
+noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [0])
+
+noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [1])
+
+groupTxnId = transaction.calculate_group_id([noopTxn2, noopTxn])
+
+noopTxn.group = groupTxnId
+noopTxn2.group = groupTxnId
+
+exec_gtxn(algod_client, [noopTxn2, noopTxn], pkey)
+```
+
+Here, we are creating two nearly-identical NoOp application calls, differing only by a single parameter they pass in. We then package them into a single group transaction and execute them using the helper function provided at the beginning. Next, let's update `contracts.py` to handle these different parameters. Inside the `handle_noop Seq()`, let's modify our If-Else:
+

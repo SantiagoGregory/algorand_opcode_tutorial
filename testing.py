@@ -1,4 +1,5 @@
 import base64
+from tokenize import group
 
 from algosdk.future import transaction
 from algosdk import account, mnemonic, logic
@@ -70,7 +71,7 @@ def create_app(client, private_key, approval_program, clear_program, global_sche
 def exec_txn(client, txn, private_key):
     signed_txn = txn.sign(private_key)
     tx_id = signed_txn.transaction.get_txid()
-
+    print("Txn id:", tx_id)
     client.send_transactions([signed_txn])
     wait_for_confirmation(client, tx_id, 10)
     return client.pending_transaction_info(tx_id)
@@ -82,6 +83,7 @@ def exec_gtxn(client, txns, private_key):
         stxns.append(txn.sign(private_key))
 
     tx_id = client.send_transactions(stxns)
+    print("Group txn id:", tx_id)
 
     wait_for_confirmation(client, tx_id, 10)
 
@@ -116,3 +118,21 @@ updateTxn = transaction.ApplicationUpdateTxn(sender, algod_client.suggested_para
     APP_ID, compiled_approval, compiled_clearstate)
 
 exec_txn(algod_client, updateTxn, pkey)
+
+noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [1])
+
+noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [2])
+
+# exec_txn(algod_client, noopTxn, pkey)
+
+# optInTxn = transaction.ApplicationCloseOutTxn(sender, algod_client.suggested_params(), APP_ID)
+
+# exec_txn(algod_client, optInTxn, pkey)
+
+groupTxnId = transaction.calculate_group_id([noopTxn2, noopTxn])
+
+noopTxn.group = groupTxnId
+noopTxn2.group = groupTxnId
+
+exec_gtxn(algod_client, [noopTxn2, noopTxn], pkey)
+
