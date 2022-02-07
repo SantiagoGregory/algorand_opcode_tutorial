@@ -1,4 +1,0 @@
-- Good practice to separate contract/PyTEAL and testing
-- Return(Int(1)) now Approve(), Return(Int(0)) now Reject()
-- UpdateApplication can get around 10 contract deploy limit
-- Opcode budgets computed as you go along (compute next cost, then fail if it's too much)
