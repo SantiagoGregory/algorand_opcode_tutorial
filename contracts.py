@@ -32,8 +32,8 @@ def approval_program():
 
     program = Cond(
         [Txn.application_id() == Int(0), Approve()],
-        [Txn.on_completion() == OnComplete.OptIn, Approve()],
-        [Txn.on_completion() == OnComplete.CloseOut, Approve()],
+        [Txn.on_completion() == OnComplete.OptIn, Reject()],
+        [Txn.on_completion() == OnComplete.CloseOut, Reject()],
         [Txn.on_completion() == OnComplete.UpdateApplication, Approve()],
         [Txn.on_completion() == OnComplete.DeleteApplication, Reject()],
         [Txn.on_completion() == OnComplete.NoOp, handle_noop]

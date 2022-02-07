@@ -93,8 +93,7 @@ ALGOD_ADDRESS = "http://localhost:4001"
 
 algod_client = algod.AlgodClient(ALGOD_TOKEN, ALGOD_ADDRESS)
 
-# TODO replace with "insert your mnemonic"
-MNEMONIC = "hedgehog task anchor bird student radio increase cause mix guess dog uncle above divorce acoustic amateur test pledge kit valid stage brave replace about easily"
+MNEMONIC = "YOUR_MNEMONIC_HERE"
 
 pkey = mnemonic.to_private_key(MNEMONIC)
 
