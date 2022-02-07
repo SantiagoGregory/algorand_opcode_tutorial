@@ -235,4 +235,4 @@ However, if we remove the "g" hash in the `Else` block (just commenting it out),
 
 # 6. Conclusion
 
-Congratulations! You now understand the TEAL opcode budget, and are able to use atomic transactions to increase this budget amount. TEAL is evolving rapidly, so make sure to stay informed for future changes, such as budget increases beyond the current 700 or other ways to increase the budget yourself, such as by creating "inner applications."
+Congratulations! You now understand the TEAL opcode budget and are able to use atomic transactions to increase this budget amount. TEAL is evolving rapidly, so make sure to stay informed for future changes, such as budget increases beyond the current 700 or other ways to increase the budget yourself, such as by creating "inner applications."
