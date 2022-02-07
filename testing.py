@@ -106,28 +106,22 @@ global_schema = transaction.StateSchema(0, 0)
 local_schema = transaction.StateSchema(0, 0)
 
 
-# app_id = create_app(algod_client, pkey, compiled_approval, compiled_clearstate, global_schema, local_schema)
+createAppTxn = create_app(algod_client, pkey, compiled_approval, compiled_clearstate, global_schema, local_schema)
 
-# print(app_id['application-index'])
-
-APP_ID = 67388770
+app_id = createAppTxn['application-index']
 
 sender = account.address_from_private_key(pkey)
 
-updateTxn = transaction.ApplicationUpdateTxn(sender, algod_client.suggested_params(), 
-    APP_ID, compiled_approval, compiled_clearstate)
+# APP_ID = 67388770
 
-exec_txn(algod_client, updateTxn, pkey)
+# updateTxn = transaction.ApplicationUpdateTxn(sender, algod_client.suggested_params(), 
+#     APP_ID, compiled_approval, compiled_clearstate)
 
-noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [0])
+# exec_txn(algod_client, updateTxn, pkey)
 
-noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), APP_ID, [1])
+noopTxn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), app_id, [0])
 
-# exec_txn(algod_client, noopTxn, pkey)
-
-# optInTxn = transaction.ApplicationCloseOutTxn(sender, algod_client.suggested_params(), APP_ID)
-
-# exec_txn(algod_client, optInTxn, pkey)
+noopTxn2 = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), app_id, [1])
 
 groupTxnId = transaction.calculate_group_id([noopTxn2, noopTxn])
 
